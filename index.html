@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#020617" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Deus Ex Machina</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Cinzel (English Display) -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- KoPub Fonts (Korean) -->
+    <link href="https://fonts.googleapis.com/earlyaccess/kopubbatang.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/earlyaccess/kopubdotum.css" rel="stylesheet">
+    
+    <link rel="manifest" href="/manifest.json">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              serif: ['"KoPub Batang"', '"Crimson Text"', 'serif'],
+              display: ['var(--font-display)', '"Cinzel"', '"KoPub Dotum"', 'serif'], 
+              sans: ['"KoPub Dotum"', '"Inter"', 'sans-serif'],
+            },
+            colors: {
+              god: {
+                gold: 'var(--theme-primary)', // Dynamic Primary
+                goldDim: 'var(--theme-dim)',   // Dynamic Dim
+                dark: '#020617',
+                panel: '#1E293B',
+                text: '#E2E8F0',
+                accent: 'var(--theme-accent)'  // Dynamic Accent
+              }
+            },
+            animation: {
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'shine': 'shine 2s linear infinite',
+            },
+            keyframes: {
+              shine: {
+                '0%': { backgroundPosition: '200% center' },
+                '100%': { backgroundPosition: '-200% center' },
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      :root {
+        /* Default Theme (Mythic/Ancient) */
+        --theme-primary: #D4AF37;
+        --theme-dim: #8a701e;
+        --theme-accent: #38BDF8;
+        --theme-bg-start: #1e293b;
+        --theme-bg-end: #020617;
+        --font-display: "Cinzel";
+        --theme-radius: 0.75rem;
+
+        /* Prevents elastic scrolling on iOS/Android */
+        overscroll-behavior: none;
+      }
+      body {
+        background-color: #020617;
+        color: #E2E8F0;
+        overflow: hidden; 
+        /* Native app feel */
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation; 
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      
+      /* Allow text selection only in inputs */
+      input, textarea {
+        user-select: text;
+        -webkit-user-select: text;
+      }
+
+      /* Global Gradient Background - Dynamic */
+      .divine-bg {
+        background: radial-gradient(circle at 50% 0%, var(--theme-bg-start) 0%, var(--theme-bg-end) 60%);
+        transition: background 2s ease; /* Smooth theme transition */
+      }
+
+      /* Elegant Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.02);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--theme-dim); /* Matches theme */
+        border-radius: 3px;
+        opacity: 0.5;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--theme-primary);
+      }
+
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+      
+      /* Glassmorphism Utilities */
+      .glass-panel {
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      
+      .glass-panel-heavy {
+        background: rgba(2, 6, 23, 0.85);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--theme-dim); /* Themed border */
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.0",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "@capacitor/cli": "https://aistudiocdn.com/@capacitor/cli@^7.4.4",
+    "url": "https://aistudiocdn.com/url@^0.11.4"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="divine-bg">
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
