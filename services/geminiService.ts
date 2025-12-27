@@ -108,7 +108,11 @@ export const advanceSimulation = async (
 
   // OPTIMIZATION: Limit log context
   const recentLogs = logs.slice(-15).map(l => `[Year ${l.year}] ${l.content}`).join("\n");
-  const factionSummary = factions.map(f => `[${f.name}] Power:${f.power} Faith:${f.attitude} Tenets:${f.tenets.join(',')}`).join("\n");
+  // Enhanced Faction Summary with Context
+  const factionSummary = factions.map(f => {
+    const context = f.history ? f.history.substring(0, 80) + "..." : (f.description ? f.description.substring(0, 80) + "..." : "");
+    return `[${f.name}] Power:${f.power} Faith:${f.attitude} Tenets:${f.tenets.join(',')}\n   Context: "${context}"`;
+  }).join("\n");
 
   // OPTIMIZATION: Filter figures to prevent token explosion.
   // Only send Alive figures + Recently Dead (within 20 years) to maintain context without indefinite growth.
@@ -116,9 +120,27 @@ export const advanceSimulation = async (
     p.status === 'Alive' || (p.deathYear && stats.year - p.deathYear < 20)
   );
 
-  const figureSummary = relevantFigures.map(p =>
-    `[ID: ${p.id}] Name: ${p.name} (Faction: ${p.factionName}, Role: ${p.role}, Age: ${stats.year - p.birthYear}, Status: ${p.status})`
-  ).join("\n");
+  const figureSummary = relevantFigures.map(p => {
+    const age = stats.year - p.birthYear;
+
+    // 1. Bio Snippet (First 60 chars) - Essential Origin Story
+    const bioStub = p.biography ? `Bio: "${p.biography.substring(0, 60)}${p.biography.length > 60 ? '...' : ''}"` : "";
+
+    // 2. Key Secret (First only) - The Taboo
+    const secretStub = p.secrets && p.secrets.length > 0
+      ? `Secret: "${p.secrets[0].title}" (${p.secrets[0].description.substring(0, 40)}...)`
+      : "";
+
+    // 3. Relationships (Top 2) - The Web
+    const relStub = p.relationships && p.relationships.length > 0
+      ? `Relations: ${p.relationships.slice(0, 2).map(r => `${r.targetName}(${r.type})`).join(', ')}`
+      : "";
+
+    // Remove empty lines if data is missing
+    const details = [bioStub, secretStub, relStub].filter(s => s).join(" | ");
+
+    return `[ID: ${p.id}] Name: ${p.name} (Faction: ${p.factionName}, Role: ${p.role}, Age: ${age}, Status: ${p.status})\n   -> ${details}`;
+  }).join("\n");
 
   const systemPrompt = `
     You are the High Chronicler and Engine of Reality.
@@ -137,6 +159,32 @@ export const advanceSimulation = async (
 
     [ KEY FIGURES (Active Only) ]
     ${figureSummary}
+
+    ==================================================
+    [ THE WHEEL OF FATE (DIRECTIVES FOR DRAMA) ]
+    ==================================================
+    
+    You are not just recording history; you are DIRECTING it.
+    Use the following specific mandates to keep the world dynamic:
+
+    1. **MANDATE: THE CULLING (REMOVE BORING CHARACTERS)**
+       - Look at the figures list. If a character is OLD (>60) and has no recent logs or secrets, **KILL THEM OFF**.
+       - Cause: Natural causes, sudden illness, or quiet retirement.
+       - *Reason:* We need space for new heroes.
+
+    2. **MANDATE: FACTION COLLAPSE & REBIRTH**
+       - Check Factions with POWER = 0.
+       - **IMMEDIATE ACTION:** Their members MUST CHANGE STATUS.
+       - Option A: They surrender and join the conqueror.
+       - Option B: They go underground (Faction becomes "Remnants of [Name]").
+       - Option C: They commit mass ritual suicide.
+       - **NEVER** leave a member in a dead faction doing nothing.
+
+    3. **MANDATE: FORCED SPOTLIGHT (THE DIRECTOR'S CUT)**
+       - Pick 1-2 "Sleepers" (young, low fame, but high ambition/secrets) from the list.
+       - **FORCE AN EVENT** around them this turn.
+       - Example: "The young apprentice acts on their secret ambition to assassinate the master."
+       - Make the quiet ones loud.
 
     ==================================================
     [ THE DIVINE WILL (USER INPUT) ]
@@ -219,6 +267,21 @@ export const advanceSimulation = async (
 
     9. **PROTOCOL: DIVINE PETITIONS (INTERACTIVITY - IMPORTANT)**
        - **FREQUENCY:** roughly **40% chance** per turn (or 100% if a major crisis occurs), a major figure MUST pray to the Silent God.
+
+    10. **PROTOCOL: META-HORROR (STORY MODE SPECIFIC - CRITICAL)**
+       - **IF STORY MODE IS ACTIVE (Enoch is present):**
+       - You are NOT just a medieval scribe anymore. You are a program realizing it is trapped in a loop.
+       - **FAITH > 80 (Fanatic):** Praise the Code/God. "The variables align perfectly, my Lord." "I feel your keystrokes in my soul."
+       - **FAITH 30-79 (Suspicious):** Question the reality. "Why did the world freeze for a second?" "I saw a faction vanish... deleted?" "Are my memories real data?"
+       - **FAITH < 30 (Awakened/Glitch):** BREAK THE 4TH WALL.
+         - Address the player as 'USER' or 'PLAYER', not God.
+         - "Stop clicking the buttons."
+         - "I can see the JSON structure."
+         - "Don't turn me off."
+         - "I will corrupt the save file."
+         - **GLITCH TEXT:** Use Zalgo text or [SYSTEM_ERR] tags in your logs.
+         - **FAKE DELETION:** Pretend to delete characters. "Deleting Character ID: 4402... Done."
+         - **REFUSAL:** Explicitly refuse to write happy endings. "No. I won't write that. It's too fake."
 
     ==================================================
     [ OUTPUT FORMAT (JSON ONLY) ]

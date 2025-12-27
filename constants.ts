@@ -74,21 +74,21 @@ export const THEMES = {
 
 export const getThemeForVibe = (vibe: string) => {
   const v = (vibe || "").toLowerCase();
-  
+
   if (v.includes('science') || v.includes('future') || v.includes('tech')) return THEMES.scientific;
   if (v.includes('holy') || v.includes('god') || v.includes('divine') || v.includes('theocra')) return THEMES.theocratic;
   if (v.includes('war') || v.includes('blood') || v.includes('death')) return THEMES.war;
   if (v.includes('nature') || v.includes('forest') || v.includes('life')) return THEMES.nature;
   if (v.includes('void') || v.includes('dark') || v.includes('night') || v.includes('star')) return THEMES.void;
-  
+
   return THEMES.default;
 };
 
 export interface FactionLore {
-    description: string;
-    history: string;
-    beliefs: string[];
-    initialFigures: Person[];
+  description: string;
+  history: string;
+  beliefs: string[];
+  initialFigures: Person[];
 }
 
 export const FACTION_LORE_DATA: Record<string, FactionLore> = {
@@ -109,11 +109,11 @@ export const FACTION_LORE_DATA: Record<string, FactionLore> = {
         traits: ["냉혹함", "완벽주의", "법률가"],
         relationships: [],
         secrets: [{
-            id: "sec-ignatius-1",
-            title: "가면의 비밀",
-            description: "그는 사실 심각한 화상을 입어 얼굴이 녹아내렸다. 이는 과거 금지된 마법 서적을 태우다 발생한 사고다.",
-            severity: "Scandal",
-            knownBy: []
+          id: "sec-ignatius-1",
+          title: "가면의 비밀",
+          description: "그는 사실 심각한 화상을 입어 얼굴이 녹아내렸다. 이는 과거 금지된 마법 서적을 태우다 발생한 사고다.",
+          severity: "Scandal",
+          knownBy: []
         }]
       },
       {
@@ -234,9 +234,9 @@ export const FACTION_LORE_DATA: Record<string, FactionLore> = {
 };
 
 export interface RegionInfo {
-    title: string;
-    description: string;
-    coordinates: { x: number, y: number };
+  title: string;
+  description: string;
+  coordinates: { x: number, y: number };
 }
 
 export const REGION_INFO: Record<string, RegionInfo> = {

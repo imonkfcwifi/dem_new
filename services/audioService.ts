@@ -14,11 +14,11 @@ export class AudioService {
     constructor() {
         if (typeof window !== 'undefined') {
             this.enabled = localStorage.getItem('god_mode_sound') !== 'false';
-            
+
             // Load saved volumes
             const savedBgm = localStorage.getItem('settings_bgm_vol');
             const savedSfx = localStorage.getItem('settings_sfx_vol');
-            
+
             if (savedBgm) this.bgmVolume = parseFloat(savedBgm);
             if (savedSfx) this.sfxVolume = parseFloat(savedSfx);
         }
@@ -26,7 +26,7 @@ export class AudioService {
 
     private init() {
         if (this.initialized || typeof window === 'undefined') return;
-        
+
         try {
             const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
             this.ctx = new AudioContextClass();
@@ -49,7 +49,7 @@ export class AudioService {
     public toggle() {
         this.enabled = !this.enabled;
         localStorage.setItem('god_mode_sound', String(this.enabled));
-        
+
         if (this.bgm) {
             if (this.enabled) {
                 this.bgm.play().catch(e => console.warn("BGM resume failed:", e));
@@ -90,7 +90,7 @@ export class AudioService {
             this.bgm = new Audio('/deus_bgm.mp3');
             this.bgm.loop = true;
         }
-        
+
         this.bgm.volume = this.bgmVolume;
 
         if (this.enabled) {
@@ -109,14 +109,14 @@ export class AudioService {
 
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        
+
         osc.connect(gain);
         gain.connect(this.masterGain);
 
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(1500, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.05);
-        
+
         // Apply SFX Volume
         const vol = 0.15 * this.sfxVolume;
         gain.gain.setValueAtTime(vol, this.ctx.currentTime);
@@ -133,13 +133,13 @@ export class AudioService {
 
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        
+
         osc.connect(gain);
         gain.connect(this.masterGain);
 
         osc.type = 'sine';
         osc.frequency.setValueAtTime(600, this.ctx.currentTime);
-        
+
         // Apply SFX Volume
         const vol = 0.02 * this.sfxVolume;
         gain.gain.setValueAtTime(vol, this.ctx.currentTime);
@@ -156,14 +156,14 @@ export class AudioService {
 
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        
+
         osc.connect(gain);
         gain.connect(this.masterGain);
 
         osc.type = 'sine';
         osc.frequency.setValueAtTime(120, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 1.2);
-        
+
         // Apply SFX Volume
         const vol = 0.6 * this.sfxVolume;
         gain.gain.setValueAtTime(vol, this.ctx.currentTime);
@@ -178,27 +178,27 @@ export class AudioService {
         this.resume();
         if (!this.ctx || !this.masterGain) return;
 
-        const freqs = [523.25, 659.25, 783.99, 1046.50]; 
+        const freqs = [523.25, 659.25, 783.99, 1046.50];
         const now = this.ctx.currentTime;
 
         freqs.forEach((f, i) => {
             const osc = this.ctx!.createOscillator();
             const gain = this.ctx!.createGain();
-            
+
             osc.type = 'triangle';
             osc.frequency.value = f;
-            
+
             osc.connect(gain);
             gain.connect(this.masterGain!);
 
             const start = now + i * 0.08;
             // Apply SFX Volume
             const vol = 0.08 * this.sfxVolume;
-            
+
             gain.gain.setValueAtTime(0, start);
             gain.gain.linearRampToValueAtTime(vol, start + 0.1);
             gain.gain.exponentialRampToValueAtTime(0.001, start + 2.5);
-            
+
             osc.start(start);
             osc.stop(start + 2.5);
         });
@@ -218,7 +218,7 @@ export class AudioService {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(880, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(1760, this.ctx.currentTime + 0.1);
-        
+
         // Apply SFX Volume
         const vol = 0.1 * this.sfxVolume;
         gain.gain.setValueAtTime(vol, this.ctx.currentTime);
@@ -226,6 +226,36 @@ export class AudioService {
 
         osc.start();
         osc.stop(this.ctx.currentTime + 0.3);
+    }
+
+    public playCrack() {
+        if (!this.enabled) return;
+        this.resume();
+        if (!this.ctx || !this.masterGain) return;
+
+        // Simulate Noise/Crack
+        const bufferSize = this.ctx.sampleRate * 0.5; // 0.5s duration
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+            // White noise with random spikes
+            data[i] = (Math.random() * 2 - 1) * (Math.random() > 0.9 ? 1 : 0.2);
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const gain = this.ctx.createGain();
+        noise.connect(gain);
+        gain.connect(this.masterGain);
+
+        // Sharp sharp decay
+        gain.gain.setValueAtTime(0.8 * this.sfxVolume, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+
+        noise.start();
+        noise.stop(this.ctx.currentTime + 0.5);
     }
 }
 

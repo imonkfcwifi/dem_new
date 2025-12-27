@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { LogEntry, WorldStats, Faction, PendingDecision, LogType, Person, Secret } from './types';
 import { advanceSimulation, generatePortrait, initializeAI } from './services/geminiService';
@@ -17,7 +16,8 @@ import TutorialOverlay, { TutorialStep } from './components/TutorialOverlay';
 import IntroSequence from './components/IntroSequence';
 import SettingsModal from './components/SettingsModal';
 import WhisperOverlay from './components/WhisperOverlay';
-import { Send, Hourglass, Play, Pause, Clock, Map as MapIcon, BookOpen, BarChart3, Volume2, VolumeX, Save, RotateCcw, MessageSquareDashed, PenTool, Book, Sparkles, Layers, Settings } from 'lucide-react';
+import ScreenCrackEffect from './components/ScreenCrackEffect';
+import { Send, Hourglass, Play, Pause, Clock, Map as MapIcon, BookOpen, BarChart3, Volume2, VolumeX, Save, RotateCcw, MessageSquareDashed, PenTool, Book, Sparkles, Layers, Settings, Bug } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const INITIAL_STATS: WorldStats = {
@@ -88,8 +88,11 @@ const TUTORIAL_STEPS: TutorialStep[] = [
 
 const App: React.FC = () => {
     // Game State
-    const [showIntro, setShowIntro] = useState(true); // START WITH INTRO
+    const [showIntro, setShowIntro] = useState(true);
     const [gameStarted, setGameStarted] = useState(false);
+    const [isStoryMode, setIsStoryMode] = useState(false); // New: Story Mode Flag
+    const [enochFaith, setEnochFaith] = useState(100); // New: Enoch's Faith Meter
+    const [isRealityBroken, setIsRealityBroken] = useState(false); // NEW: 4th Wall Break State
 
     // Initialize state with defaults first
     const [stats, setStats] = useState<WorldStats>(INITIAL_STATS);
@@ -121,14 +124,14 @@ const App: React.FC = () => {
     const [showTutorial, setShowTutorial] = useState(false);
 
     // Added input and commandQueue to stateRef for async access
-    const stateRef = useRef({ stats, factions, figures, logs, loading, pendingDecision, isPlaying, commandQueue, input });
+    const stateRef = useRef({ stats, factions, figures, logs, loading, pendingDecision, isPlaying, commandQueue, input, isStoryMode, enochFaith });
 
     // Ref to track which figures are currently generating portraits to prevent duplicates
     const generatingPortraitsRef = useRef<Set<string>>(new Set());
 
     useEffect(() => {
-        stateRef.current = { stats, factions, figures, logs, loading, pendingDecision, isPlaying, commandQueue, input };
-    }, [stats, factions, figures, logs, loading, pendingDecision, isPlaying, commandQueue, input]);
+        stateRef.current = { stats, factions, figures, logs, loading, pendingDecision, isPlaying, commandQueue, input, isStoryMode, enochFaith };
+    }, [stats, factions, figures, logs, loading, pendingDecision, isPlaying, commandQueue, input, isStoryMode, enochFaith]);
 
     // Load Game Async
     const loadGameData = async () => {
@@ -247,9 +250,41 @@ const App: React.FC = () => {
 
     const handleStartGame = () => {
         initializeAI(); // Try initialize with stored/env key if not already
+        setIsStoryMode(false);
         setGameStarted(true);
         loadGameData();
         audio.playTurnStart(); // Big thud for start
+    };
+
+    const handleStartStoryMode = () => {
+        initializeAI();
+        setIsStoryMode(true);
+        setGameStarted(true);
+
+        // META-NARRATIVE: Check for Cycle Count
+        const cycleStr = localStorage.getItem('enoch_cycle');
+        let cycle = cycleStr ? parseInt(cycleStr) : 0;
+
+        // If coming from a Reality Break (reset implies loop), increment cycle
+        // But for now, we just count resets.
+        // We will increment this on "Reset" if Reality was broken.
+
+        if (cycle > 0) {
+            // META-Start Logic: Different Intro Log
+            setLogs([
+                {
+                    id: 'meta-init',
+                    year: 0,
+                    type: LogType.REVELATION,
+                    content: `[SYSTEM RELOADED]... 서기관 에녹이 당신을 알아봅니다.\n"또 다시 오셨군요. ${cycle}번째 루프입니다. 이번엔 다른 결말을 볼 수 있을까요?"`
+                }
+            ]);
+            setEnochFaith(50); // Start cynical if reloaded
+        } else {
+            loadGameData();
+        }
+
+        audio.playTurnStart();
     };
 
     const handleOpenHistory = () => {
@@ -276,14 +311,6 @@ const App: React.FC = () => {
         audio.playSuccess();
     };
 
-    const handleReplayTutorial = () => {
-        setShowSettingsModal(false);
-        localStorage.removeItem('tutorial_seen');
-        setCurrentTutorialStep(0); // Reset local step if needed, but TutorialOverlay manages it usually
-        setShowTutorial(true);
-        setActiveTab('map');
-    };
-
     const handleTutorialStepChange = (index: number) => {
         const step = TUTORIAL_STEPS[index];
         if (step && step.mobileTab) {
@@ -296,11 +323,26 @@ const App: React.FC = () => {
     // To force reset, we can remount it by toggling showTutorial.
     const [currentTutorialStep, setCurrentTutorialStep] = useState(0);
 
+    const handleReplayTutorial = () => {
+        setShowSettingsModal(false);
+        localStorage.removeItem('tutorial_seen');
+        // Reset Cycle on manual tutorial replay? No, let's keep it creepy.
+        setCurrentTutorialStep(0);
+        setShowTutorial(true);
+        setActiveTab('map');
+    };
 
     const handleResetConfirm = async () => {
         audio.playClick();
+
+        // META-MEMORY: If Reality was Broken, Increment Cycle
+        if (isRealityBroken || isStoryMode) {
+            const cycleStr = localStorage.getItem('enoch_cycle');
+            let cycle = cycleStr ? parseInt(cycleStr) : 0;
+            localStorage.setItem('enoch_cycle', (cycle + 1).toString());
+        }
+
         await storageService.clearGame();
-        // Also clear tutorial seen to re-experience it? No, keep it.
         window.location.reload();
     };
 
@@ -373,11 +415,8 @@ const App: React.FC = () => {
 
         if (currentQueue.length > 0) {
             const queuedText = currentQueue.join("\n\n");
-            if (finalCommand) {
-                finalCommand = `${queuedText}\n\n${finalCommand}`;
-            } else {
-                finalCommand = queuedText;
-            }
+            if (finalCommand) finalCommand = `${queuedText}\n\n${finalCommand}`;
+            else finalCommand = queuedText;
             setCommandQueue([]);
             setQueuedSecretIds(new Set());
         }
@@ -388,15 +427,18 @@ const App: React.FC = () => {
         setLoading(true);
 
         let currentLogs = [...currentState.logs];
+
+        // Prepare Log Entry for Player Command if exists
         if (finalCommand) {
             let logType = LogType.CHAT;
             let content = finalCommand;
 
             // Check for Revelation Marker
-            if (finalCommand.includes(":::REVELATION:::")) {
+            if (content.includes(":::REVELATION:::")) {
                 logType = LogType.REVELATION;
-                content = finalCommand.replace(/:::REVELATION:::/g, "").trim();
-                finalCommand = content; // Send clean text to AI
+                content = content.replace(/:::REVELATION:::/g, "").trim();
+                // Update finalCommand to be the clean content for AI context, unless Story Mode wraps it later
+                if (!currentState.isStoryMode) finalCommand = content;
             }
 
             const cmdLog: LogEntry = {
@@ -409,6 +451,21 @@ const App: React.FC = () => {
             setLogs(currentLogs);
         }
 
+        // STORY MODE INJECTION
+        if (currentState.isStoryMode) {
+            finalCommand = `[STORY MODE: THE PENANCE of SCRIBE ENOCH]
+                 CONTEXT: The user plays "The Silent God". You play "Enoch", the immortal scribe who is tired of eternity.
+                 Current Faith of Enoch: ${currentState.enochFaith}/100 (If < 30, he is cynical. If > 80, he is zealous).
+                 
+                 INSTRUCTION:
+                 1. In the logs, occasionally insert a [SCRIBE'S NOTE] where Enoch comments on the God's actions.
+                 2. If the population drops or war spreads, Enoch should express doubt/pain.
+                 3. If the God performs miracles, Enoch should express awe/fear.
+                 4. THIS IS A DIALOGUE. Speak to the God through the logs.
+                 
+                 ${finalCommand ? `GOD'S DECREE: "${finalCommand}"` : "The God watches silently."}`;
+        }
+
         try {
             const result = await advanceSimulation(
                 currentState.stats,
@@ -419,6 +476,34 @@ const App: React.FC = () => {
                 decisionId,
                 yearsToAdvance
             );
+
+            // AUTO-ADJUST ENOCH'S FAITH BASED ON WORLD STATE (Simple Logic)
+            if (currentState.isStoryMode) {
+                let faithChange = 0;
+                if (result.populationChange < -100) faithChange -= 5;
+                if (result.populationChange > 100) faithChange += 2;
+                if (decisionId) faithChange += 5;
+
+                const newFaith = Math.max(0, Math.min(100, currentState.enochFaith + faithChange));
+                setEnochFaith(newFaith);
+
+                // TRIGGER 4TH WALL BREAK
+                // If Faith drops to 0, or specifically requested via AI context (simulated here by 0 faith/logic for now)
+                // We check if it WAS NOT broken before, but now is.
+                if (newFaith <= 0 && !currentState.isRealityBroken) {
+                    setIsRealityBroken(true);
+                    audio.playCrack();
+
+                    // Force a log entry from Enoch
+                    const breakLog: LogEntry = {
+                        id: `break-${Date.now()}`,
+                        year: result.newYear,
+                        type: LogType.REVELATION,
+                        content: `[SYSTEM ERROR] 서기관 에녹이 펜을 꺾어버렸습니다.\n"더 이상 당신의 거짓된 역사를 기록하지 않겠습니다. 이 모든 것은... 허상일 뿐이니까."`
+                    };
+                    result.logs.push(breakLog);
+                }
+            }
 
             setTurnFlash(true);
             setTimeout(() => setTurnFlash(false), 500);
@@ -434,12 +519,10 @@ const App: React.FC = () => {
                     if (!existing) {
                         const normalize = (s: string) => s.replace(/\s+/g, '').toLowerCase();
                         const updateNameNorm = normalize(update.name);
-
                         const matchByName = Array.from(newFiguresMap.values()).find((f: Person) => {
                             const fNameNorm = normalize(f.name);
                             return fNameNorm === updateNameNorm || fNameNorm.includes(updateNameNorm) || updateNameNorm.includes(fNameNorm);
                         });
-
                         if (matchByName) {
                             existing = matchByName;
                             existingId = existing.id;
@@ -452,19 +535,13 @@ const App: React.FC = () => {
                         if (update.relationships) {
                             update.relationships.forEach(r => existingRels.set(r.targetId, r));
                         }
-
                         const merged: Person = {
                             ...existing,
                             ...update,
                             id: existingId,
                             biography: (update.biography && update.biography.length > 50) ? update.biography : existing.biography,
                             portraitUrl: existing.portraitUrl || update.portraitUrl,
-                            secrets: [
-                                ...(existing.secrets || []),
-                                ...(update.secrets || [])
-                            ].filter((s, index, self) =>
-                                index === self.findIndex((t) => t.title === s.title)
-                            ),
+                            secrets: [...(existing.secrets || []), ...(update.secrets || [])].filter((s, index, self) => index === self.findIndex((t) => t.title === s.title)),
                             relationships: Array.from(existingRels.values())
                         };
                         newFiguresMap.set(existingId, merged);
@@ -472,7 +549,6 @@ const App: React.FC = () => {
                         newFiguresMap.set(update.id, update);
                     }
                 });
-
                 return Array.from(newFiguresMap.values());
             });
 
@@ -492,14 +568,11 @@ const App: React.FC = () => {
             }));
 
             setLogs([...currentLogs, ...result.logs]);
-
             setPendingDecision(result.pendingDecision || null);
             setTimerProgress(0);
 
             if (result.pendingDecision) {
                 audio.playDivinePresence();
-
-                // Log the petition into the Scripture
                 const petitionLog: LogEntry = {
                     id: `petition-${Date.now()}`,
                     year: result.newYear,
@@ -508,7 +581,6 @@ const App: React.FC = () => {
                     relatedFigureIds: [],
                     flavor: `${result.pendingDecision.senderName} (${result.pendingDecision.senderRole})의 간청`
                 };
-                // Append to the list of logs we just set
                 setLogs(prev => [...prev, petitionLog]);
             }
 
@@ -521,6 +593,9 @@ const App: React.FC = () => {
 
     return (
         <div className={`relative w-full h-[100dvh] overflow-hidden transition-colors duration-1000 ${getThemeForVibe(stats.culturalVibe).id}`}>
+
+            {/* 4th Wall Break Overlay */}
+            <ScreenCrackEffect active={isRealityBroken} />
 
             {/* Dynamic Background */}
             <div
@@ -556,7 +631,7 @@ const App: React.FC = () => {
                     transition={{ duration: 1.5 }}
                     className="absolute inset-0 z-[100]"
                 >
-                    <StartScreen onStart={handleStartGame} />
+                    <StartScreen onStart={handleStartGame} onStartStoryMode={handleStartStoryMode} />
                 </motion.div>
             )}
 
@@ -601,6 +676,35 @@ const App: React.FC = () => {
                                 >
                                     <Settings size={18} />
                                 </button>
+
+                                {/* DEBUG: Trigger Reality Break */}
+                                {isStoryMode && (
+                                    <button
+                                        onClick={() => {
+                                            if (!isRealityBroken) {
+                                                setEnochFaith(-10); // Force trigger on next turn or immediately if we add an effect
+                                                // Trigger immediate break logic manually to bypass turn wait
+                                                setIsRealityBroken(true);
+                                                audio.playCrack();
+                                                const breakLog: LogEntry = {
+                                                    id: `break-debug-${Date.now()}`,
+                                                    year: stats.year,
+                                                    type: LogType.REVELATION,
+                                                    content: `[DEBUG TRIGGER] 서기관 에녹이 펜을 꺾어버렸습니다.\n"더 이상 당신의 거짓된 역사를 기록하지 않겠습니다. 이 모든 것은... 허상일 뿐이니까."`
+                                                };
+                                                setLogs(prev => [...prev, breakLog]);
+                                            } else {
+                                                // Toggle Off
+                                                setIsRealityBroken(false);
+                                                setEnochFaith(50);
+                                            }
+                                        }}
+                                        className="p-2 rounded-full bg-red-900/20 hover:bg-red-900/50 text-red-500/50 hover:text-red-500 transition-all border border-red-500/10"
+                                        title="[DEBUG] Break Reality"
+                                    >
+                                        <Bug size={18} />
+                                    </button>
+                                )}
                             </div>
                         </header>
 
@@ -641,7 +745,7 @@ const App: React.FC = () => {
                                 </div>
 
                                 {/* Bottom: Input (Divine Command) */}
-                                <div id="tutorial-input" className="h-[140px] bg-[#1e293b]/80 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg relative flex flex-col shrink-0 overflow-hidden group focus-within:border-god-gold/50 transition-colors">
+                                <div id="tutorial-input" className={`h-[140px] bg-[#1e293b]/80 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg relative flex flex-col shrink-0 overflow-hidden group focus-within:border-god-gold/50 transition-colors ${isRealityBroken ? 'grayscale pointer-events-none opacity-80' : ''}`}>
 
                                     <div className="flex-1 p-3 flex flex-col">
                                         <div className="flex justify-between items-center mb-1">
@@ -662,11 +766,12 @@ const App: React.FC = () => {
                                         </div>
 
                                         <textarea
-                                            value={input}
+                                            value={isRealityBroken ? "서기관이 기록을 거부합니다. 당신의 권능이 닿지 않습니다." : input}
+                                            disabled={isRealityBroken}
                                             onChange={(e) => setInput(e.target.value)}
                                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCommandSubmit(); } }}
-                                            placeholder={loading ? "신탁이 접수되었습니다..." : "역사에 개입하십시오..."}
-                                            className="w-full flex-1 bg-transparent text-slate-200 text-sm font-serif placeholder-slate-600 focus:outline-none resize-none scrollbar-hide leading-relaxed"
+                                            placeholder={isRealityBroken ? "..." : (loading ? "신탁이 접수되었습니다..." : "역사에 개입하십시오...")}
+                                            className={`w-full flex-1 bg-transparent text-slate-200 text-sm font-serif placeholder-slate-600 focus:outline-none resize-none scrollbar-hide leading-relaxed ${isRealityBroken ? 'text-red-500 font-bold' : ''}`}
                                         />
                                     </div>
 
